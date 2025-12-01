@@ -1,0 +1,85 @@
+#include "minishell.h"
+#include <ctype.h>
+
+static char *trim(char *s)
+{
+	if (!s) return (NULL);
+	while (*s && (*s == ' ' || *s == '\t')) s++;
+	char *end = s + ms_strlen(s) - 1;
+	while (end > s && (*end == ' ' || *end == '\t')) { *end = '\0'; end--; }
+	return s;
+}
+
+static char **split_by_pipe(char *line, int *count)
+{
+	char **res = NULL;
+	int cap = 4;
+	int n = 0;
+	res = malloc(sizeof(char *) * cap);
+	if (!res) return (NULL);
+	char *p = line;
+	char *start = p;
+	while (*p)
+	{
+		if (*p == '|')
+		{
+			* p = '\0';
+			char *t = trim(start);
+			res[n++] = ms_strdup(t ? t : "");
+			if (n >= cap) { cap *= 2; res = realloc(res, sizeof(char *) * cap); }
+			start = p + 1;
+		}
+		p++;
+	}
+	char *t = trim(start);
+	res[n++] = ms_strdup(t ? t : "");
+	res[n] = NULL;
+	*count = n;
+	return (res);
+}
+
+t_cmd *parser(char *line)
+{
+	int n;
+	char **parts = split_by_pipe(line, &n);
+	if (!parts) return (NULL);
+	t_cmd *head = NULL;
+	t_cmd *cur = NULL;
+	for (int i = 0; i < n; i++)
+	{
+		char *seg = parts[i];
+		// parse redirections
+		char *in = NULL;
+		char *out = NULL;
+		int append = 0;
+		char *p = seg;
+		char *token;
+		// simple parse: look for '<' and '>'
+		for (char *q = seg; *q; q++)
+		{	if (*q == '<') { *q = ' '; q++; while (*q == ' ') q++; in = ms_strdup(q); while (*q && *q != ' ' && *q != '>' ) q++; *q = '\0'; }
+			if (*q == '>') { append = (*(q+1) == '>'); *q = ' '; if (append) { q++; *q = ' '; } q++; while (*q == ' ') q++; out = ms_strdup(q); while (*q && *q != ' ' && *q != '<') q++; *q = '\0'; }
+		}
+		// build argv from remaining segment
+		char **argv = ms_split_whitespace(seg);
+		int argc = 0; if (argv) while (argv[argc]) argc++;
+		t_cmd *node = malloc(sizeof(t_cmd)); if (!node) return (NULL);
+		node->argv = argv; node->argc = argc; node->next = NULL; node->redir.infile = in; node->redir.outfile = out; node->redir.append = append;
+		if (!head) head = node; else cur->next = node; cur = node;
+		free(parts[i]);
+	}
+	free(parts);
+	return (head);
+}
+
+void cmd_clear(t_cmd *cmd)
+{
+	while (cmd)
+	{
+		t_cmd *n = cmd->next;	int i = 0;
+		if (cmd->argv) { while (cmd->argv[i]) { free(cmd->argv[i]); i++; } free(cmd->argv); }
+		if (cmd->redir.infile) free(cmd->redir.infile);
+		if (cmd->redir.outfile) free(cmd->redir.outfile);
+		free(cmd);
+		cmd = n;
+	}
+}

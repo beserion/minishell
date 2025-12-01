@@ -1,0 +1,205 @@
+#include "minishell.h"
+#include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
+#include <limits.h>
+#include <errno.h>
+
+extern char **environ;
+
+int	is_builtin(char *cmd)
+{
+	if (!cmd)
+		return (0);
+	if (strcmp(cmd, "cd") == 0)
+		return (1);
+	if (strcmp(cmd, "echo") == 0)
+		return (1);
+	if (strcmp(cmd, "pwd") == 0)
+		return (1);
+	if (strcmp(cmd, "exit") == 0)
+		return (1);
+	if (strcmp(cmd, "env") == 0)
+		return (1);
+	if (strcmp(cmd, "export") == 0)
+		return (1);
+	if (strcmp(cmd, "unset") == 0)
+		return (1);
+	return (0);
+}
+
+/* Implementation of builtins kept minimal and robust */
+
+/* echo */
+static int	builtin_echo(char **argv)
+{
+	int i = 1;
+	int nflag = 0;
+	int first = 1;
+
+	while (argv[i] && argv[i][0] == '-' && argv[i][1] == 'n')
+	{
+		int j = 1;
+		while (argv[i][j] == 'n') j++;
+		if (argv[i][j] == '\0') { nflag = 1; i++; continue; }
+		break;
+	}
+	while (argv[i])
+	{
+		if (!first) write(STDOUT_FILENO, " ", 1);
+		write(STDOUT_FILENO, argv[i], strlen(argv[i]));
+		first = 0;
+		i++;
+	}
+	if (!nflag) write(STDOUT_FILENO, "\n", 1);
+	return (0);
+}
+
+/* cd: change directory in the current process */
+static int	builtin_cd(char **argv)
+{
+	char cwd[PATH_MAX];
+	char *oldpwd = getenv("PWD");
+	char *target;
+
+	if (!argv[1] || argv[1][0] == '\0')
+	{
+		target = getenv("HOME");
+		if (!target)
+		{
+			fprintf(stderr, "cd: HOME not set\n");
+			return (1);
+		}
+	}
+	else if (strcmp(argv[1], "-") == 0)
+	{
+		target = getenv("OLDPWD");
+		if (!target)
+		{
+			fprintf(stderr, "cd: OLDPWD not set\n");
+			return (1);
+		}
+	}
+	else
+		target = argv[1];
+
+	if (chdir(target) != 0)
+	{
+		fprintf(stderr, "cd: %s: %s\n", target, strerror(errno));
+		return (1);
+	}
+	if (getcwd(cwd, sizeof(cwd)))
+	{
+		if (oldpwd) setenv("OLDPWD", oldpwd, 1);
+		setenv("PWD", cwd, 1);
+		if (argv[1] && strcmp(argv[1], "-") == 0)
+			printf("%s\n", cwd);
+	}
+	return (0);
+}
+
+/* pwd */
+static int	builtin_pwd(void)
+{
+	char buf[PATH_MAX];
+	if (getcwd(buf, sizeof(buf)))
+	{
+		printf("%s\n", buf);
+		return (0);
+	}
+	fprintf(stderr, "pwd: %s\n", strerror(errno));
+	return (1);
+}
+
+/* env */
+static int	builtin_env(void)
+{
+	char **p = environ;
+	while (p && *p)
+	{
+		printf("%s\n", *p);
+		p++;
+	}
+	return (0);
+}
+
+/* export */
+static int	builtin_export(char **argv)
+{
+	int i = 1;
+	if (!argv[1])
+	{
+		char **p = environ;
+		while (p && *p)
+		{
+			printf("declare -x %s\n", *p);
+			p++;
+		}
+		return (0);
+	}
+	while (argv[i])
+	{
+		char *eq = strchr(argv[i], '=');
+		if (eq)
+		{
+			char key[256];
+			size_t klen = eq - argv[i];
+			if (klen >= sizeof(key)) klen = sizeof(key) - 1;
+			memcpy(key, argv[i], klen);
+			key[klen] = '\0';
+			setenv(key, eq + 1, 1);
+		}
+		else
+			setenv(argv[i], "", 1);
+		i++;
+	}
+	return (0);
+}
+
+/* unset */
+static int	builtin_unset(char **argv)
+{
+	int i = 1;
+	if (!argv[1]) return (0);
+	while (argv[i])
+	{
+		unsetenv(argv[i]);
+		i++;
+	}
+	return (0);
+}
+
+/* exit */
+static int	builtin_exit(char **argv)
+{
+	int status = 0;
+	char *endptr;
+	if (argv[1])
+	{
+		errno = 0;
+		long v = strtol(argv[1], &endptr, 10);
+		if (endptr == argv[1] || *endptr != '\0' || errno != 0)
+		{
+			fprintf(stderr, "exit: %s: numeric argument required\n", argv[1]);
+			status = 255;
+		}
+		else
+			status = (int)(v & 0xff);
+	}
+	exit(status);
+	return (status);
+}
+
+int	run_builtin(char **argv)
+{
+	if (!argv || !argv[0]) return (1);
+	if (strcmp(argv[0], "echo") == 0) return (builtin_echo(argv));
+	if (strcmp(argv[0], "cd") == 0) return (builtin_cd(argv));
+	if (strcmp(argv[0], "pwd") == 0) return (builtin_pwd());
+	if (strcmp(argv[0], "env") == 0) return (builtin_env());
+	if (strcmp(argv[0], "export") == 0) return (builtin_export(argv));
+	if (strcmp(argv[0], "unset") == 0) return (builtin_unset(argv));
+	if (strcmp(argv[0], "exit") == 0) return (builtin_exit(argv));
+	return (1);
+}

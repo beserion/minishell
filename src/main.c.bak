@@ -1,0 +1,33 @@
+#include "minishell.h"
+
+static void sigint_handler(int signo)
+{
+	(void)signo;
+	write(1, "\n", 1);
+}
+
+int main(void)
+{
+	char *line = NULL;
+	size_t len = 0;
+	ssize_t nread;
+	t_cmd *cmd;
+
+	signal(SIGINT, sigint_handler);
+	while (1)
+	{
+		write(1, "minishell$ ", 11);
+		nread = getline(&line, &len, stdin);
+		if (nread == -1) { write(1, "\n", 1); break; }
+		if (nread > 0 && line[nread - 1] == '\n') line[nread - 1] = '\0';
+		if (line[0] == '\0') continue;
+		cmd = parser(line);
+		if (cmd)
+		{	int status = exec_pipeline(cmd);
+			cmd_clear(cmd);
+			(void)status;
+		}
+	}
+	free(line);
+	return (0);
+}
