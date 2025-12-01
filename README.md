@@ -213,13 +213,3 @@ EOF
 GitHub: *https://github.com/beserion*
 
 ---
-
-If you want, I can also create:
-
-✔ a project banner
-✔ fancy ASCII logo
-✔ a GIF demonstration
-✔ badges (build, norm, license, etc.)
-
-Just tell me!
-
