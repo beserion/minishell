@@ -1,11 +1,225 @@
-Final FULL minishell (work-in-progress)
-- Features included:
-  - readline prompt with basic filename completion (TAB)
-  - parser supporting quotes, escapes, pipes, redirections, heredoc (creates /tmp temp files)
-  - exec pipeline with redirections and heredoc support
-  - builtins: echo, cd, pwd, env, export, unset, exit
-  - utils with memory cleanup for commands and heredoc unlinking
+# 🐚 **Minishell**
 
-Notes:
-- Requires libreadline-dev installed (Debian/Ubuntu: sudo apt install libreadline-dev)
-- This is intended as a final package you asked for; still may need polishing for full 42 Norminette compliance.
+### *A minimal yet powerful UNIX shell — 42 School Project*
+
+---
+
+## 📌 Overview
+
+**Minishell** is a lightweight yet fully functional UNIX shell written entirely in C, following the strict rules of the **42 School Norm v4.1**.
+It replicates essential behaviors of real shells such as bash, including command parsing, pipelines, redirections, environment variables, builtins, and proper signal handling.
+
+The project focuses on deepening knowledge of **process management**, **system calls**, **file descriptors**, **parsing**, and **memory management**.
+
+---
+
+## 🚀 Features
+
+### ✔️ Builtins
+
+All mandatory builtins have been implemented:
+
+* `echo`
+* `cd`
+* `pwd`
+* `env`
+* `export`
+* `unset`
+* `exit`
+
+Builtins that must run in the parent process are executed without forking.
+
+---
+
+### ✔️ Lexer & Parser
+
+A robust parsing system capable of handling:
+
+* Tokenization with whitespace handling
+* Quoted strings: `'single'`, `"double"`
+* Escape character support
+* Pipes: `cmd1 | cmd2 | cmd3`
+* Redirections:
+
+  * `>`
+  * `>>`
+  * `<`
+  * `<<` (heredoc)
+* Multiple commands via lightweight AST-like structures
+* Environment variable expansion (`$VAR`)
+
+The parser is fully memory-safe and leak-free.
+
+---
+
+### ✔️ Execution Engine
+
+* Pipeline execution using `fork`, `pipe`, and `dup2`
+* Input/output redirection
+* Heredoc implementation using temporary files
+* Correct detection and execution of builtins
+* External command execution using `execve`
+* PATH resolution
+* Proper exit code handling
+
+---
+
+### ✔️ Environment Variable System
+
+Custom environment list implementation:
+
+* Exporting variables
+* Unsetting variables
+* Passing environment to child processes
+* Expanding `$VARIABLE` inside commands
+
+---
+
+### ✔️ Readline Integration
+
+* Interactive prompt using `readline()`
+* Command history
+* CTRL key behavior:
+
+  * `CTRL + C` → resets prompt
+  * `CTRL + D` → exits shell
+  * `CTRL + \` → ignored (matching bash)
+
+---
+
+### ✔️ Signal Handling
+
+* Parent process uses custom signal handlers
+* Child processes restore default behavior
+* Bash-like signal interpretation
+* Prevents prompt corruption on interrupts
+
+---
+
+### ✔️ Memory Safety
+
+* No memory leaks
+* All commands, tokens, environment lists, heredocs, and parser structures properly freed
+* Temporary heredoc files cleaned automatically
+
+---
+
+## 📂 Project Structure
+
+```
+minishell/
+│── Makefile
+│── include/
+│   ├── minishell.h
+│   ├── parser.h
+│   ├── exec.h
+│   └── builtin.h
+│
+│── src/
+│   ├── main.c
+│   ├── parser.c
+│   ├── lexer.c
+│   ├── exec.c
+│   ├── builtin.c
+│   ├── env.c
+│   ├── signals.c
+│   └── utils.c
+│
+└── lib/
+    ├── libft/
+    └── printf/
+```
+
+---
+
+## 🔧 Build & Run
+
+### Build the project:
+
+```
+make
+```
+
+### Run the shell:
+
+```
+./minishell
+```
+
+### Cleanup:
+
+```
+make clean
+make fclean
+make re
+```
+
+---
+
+## 🧪 Example Usage
+
+```
+minishell> echo hello world
+hello world
+
+minishell> export PATH=/usr/bin
+minishell> ls | grep .c > list.txt
+
+minishell> cat << EOF
+heredoc working
+EOF
+```
+
+---
+
+## 🌐 Compatibility
+
+* Linux (Ubuntu, Debian, Arch, Fedora)
+* macOS (with readline installed)
+* Fully Norminette v4.1 compliant
+* GCC / Clang compatible
+
+---
+
+## 🧩 What This Project Teaches
+
+* Process creation & management
+* Inter-process communication (pipes)
+* Terminal control
+* Signal handling
+* Memory management
+* Parsing and grammar structures
+* UNIX system calls:
+
+  * `fork`, `execve`, `pipe`, `dup2`, `waitpid`
+  * `open`, `read`, `write`, `close`
+  * `getcwd`, `chdir`
+
+---
+
+## 🔥 Possible Future Improvements
+
+* Auto-completion (tab)
+* Colored prompt themes
+* Job control (`jobs`, `fg`, `bg`)
+* Alias system
+* `.minishellrc` config file support
+
+---
+
+## 📬 Contact
+
+**Yahya Karacan**
+GitHub: *https://github.com/beserion*
+
+---
+
+If you want, I can also create:
+
+✔ a project banner
+✔ fancy ASCII logo
+✔ a GIF demonstration
+✔ badges (build, norm, license, etc.)
+
+Just tell me!
+
